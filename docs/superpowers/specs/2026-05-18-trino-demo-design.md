@@ -4,6 +4,11 @@
 **Domain:** Banking (Customer360 + Transactions)  
 **Goal:** Deployable demo of Trino as a query engine for a banking datalake: silver Iceberg tables → gold Iceberg tables via SQL-as-code pipelines, with a dark-themed data catalog UI.
 
+**Two deployment modes (same images, same config):**
+
+- `docker compose up` — local dev/test, single command, no cluster needed
+- Helm chart — Kubernetes deployment for shared/production demo environments
+
 ---
 
 ## Architecture
@@ -261,6 +266,43 @@ ui:
 
 ---
 
+## Local Development (Docker Compose)
+
+`docker-compose.yml` runs the exact same stack as Helm — same images, same env vars — so pipelines and UI can be developed and tested before deploying to Kubernetes.
+
+```
+docker compose up -d            # start MinIO, Nessie, Trino, UI
+docker compose run seed         # generate silver data (idempotent)
+docker compose run pipeline-runner  # materialize gold tables
+open http://localhost:3000      # Demo UI
+```
+
+**Service map:**
+
+| Service                    | Compose name      | Port                       |
+| -------------------------- | ----------------- | -------------------------- |
+| MinIO                      | `minio`           | 9000 (API), 9001 (console) |
+| Project Nessie             | `nessie`          | 19120                      |
+| Trino coordinator          | `trino`           | 8080                       |
+| Demo UI (nginx)            | `ui`              | 3000                       |
+| Seed (one-shot)            | `seed`            | —                          |
+| Pipeline runner (one-shot) | `pipeline-runner` | —                          |
+
+**Startup order:** MinIO and Nessie must be healthy before Trino starts (healthcheck deps). Seed runs after Trino is ready. Pipeline runner runs after seed.
+
+**Repo addition:**
+
+```
+trino-demo/
+├── docker-compose.yml          # local dev entry point
+├── docker-compose.override.yml # optional: hot-reload mounts for seed/ and pipeline-runner/
+└── ...
+```
+
+The `docker-compose.override.yml` mounts `./pipelines` and `./seed` as volumes so SQL/YAML edits are picked up without rebuilding images.
+
+---
+
 ## Key Decisions
 
 - **Nessie over Hive Metastore:** Simpler (no PostgreSQL dependency), provides git-like branch semantics which makes the silver→gold promotion story compelling in a demo.
@@ -268,3 +310,4 @@ ui:
 - **Single HTML file UI:** No build step, no Node.js, easy to inspect and modify. Trino REST API is proxied through nginx to avoid CORS issues.
 - **`strategy: replace` for gold:** Simplest refresh semantics for a demo; `append` and `merge` are placeholders for future growth.
 - **InMemory Nessie storage:** Eliminates the need for a Nessie database in demo mode; data is re-seeded on every install.
+- **Docker Compose = Helm parity:** Same images and env vars in both environments means local testing is reliable — no "works on my machine" drift.
