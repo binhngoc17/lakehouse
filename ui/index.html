@@ -868,6 +868,9 @@
                 <div class="src-row">
                   <span>Rows</span><span id="src-customers-rows">—</span>
                 </div>
+                <div class="src-row">
+                  <span>Last seeded</span><span id="src-customers-seeded">—</span>
+                </div>
                 <div class="src-row"><span>Columns</span><span>10</span></div>
                 <div class="src-row">
                   <span>Segments</span
@@ -890,6 +893,9 @@
                 <div class="src-row">
                   <span>Rows</span><span id="src-accounts-rows">—</span>
                 </div>
+                <div class="src-row">
+                  <span>Last seeded</span><span id="src-accounts-seeded">—</span>
+                </div>
                 <div class="src-row"><span>Columns</span><span>8</span></div>
                 <div class="src-row">
                   <span>Types</span
@@ -911,6 +917,9 @@
                 </div>
                 <div class="src-row">
                   <span>Rows</span><span id="src-transactions-rows">—</span>
+                </div>
+                <div class="src-row">
+                  <span>Last seeded</span><span id="src-transactions-seeded">—</span>
                 </div>
                 <div class="src-row"><span>Columns</span><span>10</span></div>
                 <div class="src-row">
@@ -1346,14 +1355,14 @@ SELECT * FROM iceberg.gold.customer_profile LIMIT 10</textarea
               <div class="kpi-sub">gold.high_value_customers</div>
             </div>
             <div class="kpi-card">
-              <div class="kpi-label">Total transactions</div>
-              <div class="kpi-val" id="kpi-txns">—</div>
-              <div class="kpi-sub">silver.transactions</div>
+              <div class="kpi-label">Txn volume today</div>
+              <div class="kpi-val" id="kpi-daily-vol">—</div>
+              <div class="kpi-sub">today · completed</div>
             </div>
             <div class="kpi-card">
-              <div class="kpi-label">Total transaction volume</div>
-              <div class="kpi-val" id="kpi-volume">—</div>
-              <div class="kpi-sub">sum(amount)</div>
+              <div class="kpi-label">Top category</div>
+              <div class="kpi-val" id="kpi-top-cat">—</div>
+              <div class="kpi-sub">gold.monthly_spending</div>
             </div>
           </div>
           <div class="insights-body">
@@ -1472,6 +1481,19 @@ SELECT * FROM iceberg.gold.customer_profile LIMIT 10</textarea
             );
             document.getElementById(el).textContent =
               Number(n).toLocaleString();
+          } catch (e) {
+            document.getElementById(el).textContent = "error";
+          }
+        }
+
+        for (const [sql, el] of [
+          ["SELECT CAST(MAX(join_date) AS VARCHAR) FROM iceberg.silver.customers", "src-customers-seeded"],
+          ["SELECT CAST(MAX(opened_date) AS VARCHAR) FROM iceberg.silver.accounts", "src-accounts-seeded"],
+          ["SELECT CAST(MAX(ts) AS VARCHAR) FROM iceberg.silver.transactions", "src-transactions-seeded"],
+        ]) {
+          try {
+            const v = await trinoScalar(sql);
+            document.getElementById(el).textContent = v ?? "—";
           } catch (e) {
             document.getElementById(el).textContent = "error";
           }
@@ -1751,11 +1773,7 @@ SELECT * FROM iceberg.gold.customer_profile LIMIT 10</textarea
         const kpis = [
           ["kpi-customers", "SELECT COUNT(*) FROM iceberg.silver.customers"],
           ["kpi-hvc", "SELECT COUNT(*) FROM iceberg.gold.high_value_customers"],
-          ["kpi-txns", "SELECT COUNT(*) FROM iceberg.silver.transactions"],
-          [
-            "kpi-volume",
-            "SELECT CAST(SUM(amount) AS BIGINT) FROM iceberg.silver.transactions WHERE status='completed'",
-          ],
+          ["kpi-daily-vol", "SELECT CAST(COALESCE(SUM(amount),0) AS BIGINT) FROM iceberg.silver.transactions WHERE status='completed' AND CAST(ts AS DATE) = CURRENT_DATE"],
         ];
         for (const [id, sql] of kpis) {
           try {
@@ -1765,6 +1783,14 @@ SELECT * FROM iceberg.gold.customer_profile LIMIT 10</textarea
           } catch {
             document.getElementById(id).textContent = "n/a";
           }
+        }
+
+        // kpi-top-cat: string value, no numeric formatting
+        try {
+          const v = await trinoScalar("SELECT merchant_category FROM iceberg.gold.monthly_spending GROUP BY merchant_category ORDER BY SUM(total_amount) DESC LIMIT 1");
+          document.getElementById("kpi-top-cat").textContent = String(v ?? "n/a");
+        } catch {
+          document.getElementById("kpi-top-cat").textContent = "n/a";
         }
 
         // Top categories
