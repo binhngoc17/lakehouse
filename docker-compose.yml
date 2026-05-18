@@ -1,0 +1,104 @@
+version: "3.9"
+
+services:
+  minio:
+    image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 minioadmin minioadmin &&
+        mc mb --ignore-existing local/datalake &&
+        echo 'bucket ready'
+      "
+
+  nessie:
+    image: projectnessie/nessie:0.80.0
+    environment:
+      QUARKUS_PROFILE: prod
+      NESSIE_VERSION_STORE_TYPE: IN_MEMORY
+    ports:
+      - "19120:19120"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:19120/api/v2/config"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  trino:
+    image: trinodb/trino:435
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+      nessie:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./trino-conf/config.properties:/etc/trino/config.properties:ro
+      - ./trino-conf/iceberg.properties:/etc/trino/catalog/iceberg.properties:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  seed:
+    build: ./seed
+    depends_on:
+      trino:
+        condition: service_healthy
+    environment:
+      MINIO_ENDPOINT: http://minio:9000
+      NESSIE_URI: http://nessie:19120/iceberg
+      NUM_CUSTOMERS: "1000"
+      NUM_ACCOUNTS: "1500"
+      NUM_TRANSACTIONS: "50000"
+    profiles:
+      - tools
+
+  pipeline-runner:
+    build: ./pipeline-runner
+    depends_on:
+      trino:
+        condition: service_healthy
+    environment:
+      TRINO_HOST: trino
+      TRINO_PORT: "8080"
+      PIPELINES_DIR: /pipelines
+    volumes:
+      - ./pipelines:/pipelines:ro
+    profiles:
+      - tools
+
+  ui:
+    image: nginx:1.27-alpine
+    depends_on:
+      trino:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./ui/index.html:/usr/share/nginx/html/index.html:ro
+      - ./ui/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  minio-data:

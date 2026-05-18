@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  seed:
+    volumes:
+      - ./seed/generate.py:/app/generate.py:ro
+    profiles:
+      - tools
+
+  pipeline-runner:
+    volumes:
+      - ./pipeline-runner/run.py:/app/run.py:ro
+      - ./pipelines:/pipelines:ro
+    profiles:
+      - tools
