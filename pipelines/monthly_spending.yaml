@@ -1,0 +1,10 @@
+name: monthly_spending
+description: "Per-customer monthly spending by merchant category"
+schedule: "0 2 * * *"
+target: gold.monthly_spending
+strategy: replace
+depends_on:
+  - silver.accounts
+  - silver.transactions
+owner: data-team
+tags: [spending, gold]

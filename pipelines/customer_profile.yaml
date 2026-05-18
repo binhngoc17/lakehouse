@@ -1,0 +1,11 @@
+name: customer_profile
+description: "Customer360 — joins silver customers, accounts, and aggregated transactions"
+schedule: "0 2 * * *"
+target: gold.customer_profile
+strategy: replace
+depends_on:
+  - silver.customers
+  - silver.accounts
+  - silver.transactions
+owner: data-team
+tags: [customer360, gold]

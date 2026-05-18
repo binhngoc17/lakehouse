@@ -1,0 +1,10 @@
+name: high_value_customers
+description: "Customers with total balance > 50000 or avg monthly spend > 10000"
+schedule: "0 2 * * *"
+target: gold.high_value_customers
+strategy: replace
+depends_on:
+  - gold.customer_profile
+  - gold.monthly_spending
+owner: data-team
+tags: [segmentation, gold]
