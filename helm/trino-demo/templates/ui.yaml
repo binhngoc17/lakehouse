@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-ui-config
+data:
+  default.conf: |
+    server {
+      listen {{ .Values.ui.port }};
+      root /usr/share/nginx/html;
+      index index.html;
+      location /api/trino/ {
+        proxy_pass http://{{ .Release.Name }}-trino:8080/;
+        proxy_set_header X-Trino-User admin;
+        proxy_read_timeout 120s;
+      }
+      location / { try_files $uri /index.html; }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-ui
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-ui
+    spec:
+      containers:
+        - name: ui
+          image: {{ .Values.ui.image }}
+          ports:
+            - containerPort: {{ .Values.ui.port }}
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html/index.html
+              subPath: index.html
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+      volumes:
+        - name: html
+          configMap:
+            name: {{ .Release.Name }}-ui-html
+        - name: nginx-conf
+          configMap:
+            name: {{ .Release.Name }}-ui-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-ui
+spec:
+  selector:
+    app: {{ .Release.Name }}-ui
+  ports:
+    - port: {{ .Values.ui.port }}
+      targetPort: {{ .Values.ui.port }}

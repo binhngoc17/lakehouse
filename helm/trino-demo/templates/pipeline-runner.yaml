@@ -1,0 +1,46 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-pipeline-runner
+spec:
+  schedule: {{ .Values.pipelineRunner.schedule | quote }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: pipeline-runner
+              image: {{ .Values.pipelineRunner.image }}
+              env:
+                - name: TRINO_HOST
+                  value: {{ .Release.Name }}-trino
+                - name: TRINO_PORT
+                  value: "8080"
+                - name: PIPELINES_DIR
+                  value: /pipelines
+              volumeMounts:
+                - name: pipelines
+                  mountPath: /pipelines
+          volumes:
+            - name: pipelines
+              configMap:
+                name: {{ .Release.Name }}-pipelines
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-pipelines
+data:
+  customer_profile.yaml: |
+{{ .Files.Get "../../pipelines/customer_profile.yaml" | indent 4 }}
+  customer_profile.sql: |
+{{ .Files.Get "../../pipelines/customer_profile.sql" | indent 4 }}
+  monthly_spending.yaml: |
+{{ .Files.Get "../../pipelines/monthly_spending.yaml" | indent 4 }}
+  monthly_spending.sql: |
+{{ .Files.Get "../../pipelines/monthly_spending.sql" | indent 4 }}
+  high_value_customers.yaml: |
+{{ .Files.Get "../../pipelines/high_value_customers.yaml" | indent 4 }}
+  high_value_customers.sql: |
+{{ .Files.Get "../../pipelines/high_value_customers.sql" | indent 4 }}

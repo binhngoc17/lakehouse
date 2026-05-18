@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-seed
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: seed
+          image: {{ .Values.seed.image }}
+          env:
+            - name: MINIO_ENDPOINT
+              value: http://{{ .Release.Name }}-minio:9000
+            - name: NESSIE_URI
+              value: http://{{ .Release.Name }}-nessie:19120/iceberg
+            - name: NUM_CUSTOMERS
+              value: {{ .Values.seed.numCustomers | quote }}
+            - name: NUM_ACCOUNTS
+              value: {{ .Values.seed.numAccounts | quote }}
+            - name: NUM_TRANSACTIONS
+              value: {{ .Values.seed.numTransactions | quote }}
