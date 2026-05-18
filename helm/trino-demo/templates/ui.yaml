@@ -16,6 +16,14 @@ data:
       location / { try_files $uri /index.html; }
     }
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-ui-html
+data:
+  index.html: |
+{{ .Files.Get "../../ui/index.html" | indent 4 }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
