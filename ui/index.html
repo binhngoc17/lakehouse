@@ -1232,7 +1232,7 @@
               <div class="catalog-ns">silver</div>
               <div
                 class="catalog-table-item"
-                onclick="loadTable('silver','customers')"
+                onclick="loadTable('silver','customers', event)"
               >
                 <svg viewBox="0 0 13 13">
                   <rect x="1" y="2" width="11" height="9" rx="1" />
@@ -1243,7 +1243,7 @@
               </div>
               <div
                 class="catalog-table-item"
-                onclick="loadTable('silver','accounts')"
+                onclick="loadTable('silver','accounts', event)"
               >
                 <svg viewBox="0 0 13 13">
                   <rect x="1" y="2" width="11" height="9" rx="1" />
@@ -1254,7 +1254,7 @@
               </div>
               <div
                 class="catalog-table-item"
-                onclick="loadTable('silver','transactions')"
+                onclick="loadTable('silver','transactions', event)"
               >
                 <svg viewBox="0 0 13 13">
                   <rect x="1" y="2" width="11" height="9" rx="1" />
@@ -1266,7 +1266,7 @@
               <div class="catalog-ns" style="margin-top:8px">gold</div>
               <div
                 class="catalog-table-item"
-                onclick="loadTable('gold','customer_profile')"
+                onclick="loadTable('gold','customer_profile', event)"
               >
                 <svg viewBox="0 0 13 13">
                   <rect x="1" y="2" width="11" height="9" rx="1" />
@@ -1277,7 +1277,7 @@
               </div>
               <div
                 class="catalog-table-item"
-                onclick="loadTable('gold','monthly_spending')"
+                onclick="loadTable('gold','monthly_spending', event)"
               >
                 <svg viewBox="0 0 13 13">
                   <rect x="1" y="2" width="11" height="9" rx="1" />
@@ -1288,7 +1288,7 @@
               </div>
               <div
                 class="catalog-table-item"
-                onclick="loadTable('gold','high_value_customers')"
+                onclick="loadTable('gold','high_value_customers', event)"
               >
                 <svg viewBox="0 0 13 13">
                   <rect x="1" y="2" width="11" height="9" rx="1" />
@@ -1394,6 +1394,10 @@ SELECT * FROM iceberg.gold.customer_profile LIMIT 10</textarea
     <script>
       const TRINO = "/api/trino";
 
+      function esc(s) {
+        return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      }
+
       // ── Trino REST client ──────────────────────────────────────────────────────────
       async function trinoQuery(sql) {
         const r = await fetch(`${TRINO}/v1/statement`, {
@@ -1424,7 +1428,7 @@ SELECT * FROM iceberg.gold.customer_profile LIMIT 10</textarea
         pipeline: {
           title: "Pipelines",
           badge: "3 pipelines",
-          action: "Run all",
+          action: "Refresh",
         },
         catalog: {
           title: "Data Catalog",
@@ -1688,11 +1692,11 @@ SELECT * FROM iceberg.gold.customer_profile LIMIT 10</textarea
       }
 
       // ── Catalog ───────────────────────────────────────────────────────────────────
-      async function loadTable(ns, tbl) {
+      async function loadTable(ns, tbl, ev) {
         document
           .querySelectorAll(".catalog-table-item")
           .forEach((el) => el.classList.remove("active"));
-        event.currentTarget.classList.add("active");
+        ev.currentTarget.classList.add("active");
         const main = document.getElementById("catalog-main");
         main.innerHTML =
           '<div style="color:var(--text3);font-size:12px;padding:10px 0">Loading…</div>';
@@ -1705,7 +1709,7 @@ SELECT * FROM iceberg.gold.customer_profile LIMIT 10</textarea
           const cols = (desc.data || [])
             .map(
               (r) =>
-                `<tr><td style="color:var(--text)">${r[0]}</td><td style="font-family:'DM Mono',monospace;color:var(--text3)">${r[1]}</td></tr>`,
+                `<tr><td style="color:var(--text)">${esc(r[0])}</td><td style="font-family:'DM Mono',monospace;color:var(--text3)">${esc(r[1])}</td></tr>`,
             )
             .join("");
 
@@ -1713,10 +1717,10 @@ SELECT * FROM iceberg.gold.customer_profile LIMIT 10</textarea
           const sampleRows = (sample.data || [])
             .map(
               (r) =>
-                `<tr>${r.map((v) => `<td>${v ?? '<span style="color:var(--text3)">null</span>'}</td>`).join("")}</tr>`,
+                `<tr>${r.map((v) => `<td>${v != null ? esc(v) : '<span style="color:var(--text3)">null</span>'}</td>`).join("")}</tr>`,
             )
             .join("");
-          const sampleHdr = sampleCols.map((c) => `<th>${c}</th>`).join("");
+          const sampleHdr = sampleCols.map((c) => `<th>${esc(c.name)}</th>`).join("");
 
           main.innerHTML = `
       <div style="font-size:13px;font-weight:500;color:var(--text)">iceberg.${ns}.${tbl}</div>
@@ -1747,10 +1751,10 @@ SELECT * FROM iceberg.gold.customer_profile LIMIT 10</textarea
           const elapsed = ((Date.now() - t0) / 1000).toFixed(2);
           const cols = (r.columns || []).map((c) => c.name);
           const rows = r.data || [];
-          const hdr = cols.map((c) => `<th>${c}</th>`).join("");
+          const hdr = cols.map((c) => `<th>${esc(c)}</th>`).join("");
           const body = rows
             .map(
-              (r) => `<tr>${r.map((v) => `<td>${v ?? ""}</td>`).join("")}</tr>`,
+              (r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join("")}</tr>`,
             )
             .join("");
           results.innerHTML = `
@@ -1814,7 +1818,7 @@ SELECT * FROM iceberg.gold.customer_profile LIMIT 10</textarea
             .map((row, i) => {
               const pct = Math.round((Number(row[1]) / max) * 100);
               return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-        <div style="width:110px;font-size:11px;color:var(--text2);text-align:right">${row[0]}</div>
+        <div style="width:110px;font-size:11px;color:var(--text2);text-align:right">${esc(row[0])}</div>
         <div style="flex:1;height:18px;background:var(--bg3);border-radius:4px;overflow:hidden;border:1px solid var(--border)">
           <div style="height:100%;width:${pct}%;background:${colors[i % colors.length]};border-radius:3px"></div>
         </div>
@@ -1853,10 +1857,10 @@ SELECT * FROM iceberg.gold.customer_profile LIMIT 10</textarea
       <tbody>${rows
         .map(
           (r) => `<tr>
-        <td>${r[0]}</td>
-        <td><span class="pill" style="background:${segColor[r[1]] || "var(--bg4)"};color:${segText[r[1]] || "var(--text3)"}">${r[1]}</span></td>
+        <td>${esc(r[0])}</td>
+        <td><span class="pill" style="background:${segColor[r[1]] || "var(--bg4)"};color:${segText[r[1]] || "var(--text3)"}">${esc(r[1])}</span></td>
         <td style="font-family:'DM Mono',monospace">$${Number(r[2]).toLocaleString()}</td>
-        <td><span class="pill pill-amber">${r[3]}</span></td>
+        <td><span class="pill pill-amber">${esc(r[3])}</span></td>
       </tr>`,
         )
         .join("")}</tbody></table>`;
