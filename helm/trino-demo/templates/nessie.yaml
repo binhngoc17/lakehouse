@@ -16,16 +16,25 @@ spec:
         - name: nessie
           image: {{ .Values.nessie.image }}
           env:
-            - name: QUARKUS_PROFILE
-              value: prod
-            - name: NESSIE_VERSION_STORE_TYPE
-              value: {{ .Values.nessie.storage }}
+            - name: CATALOG_WAREHOUSE
+              value: s3://datalake/
+            - name: CATALOG_IO__IMPL
+              value: org.apache.iceberg.aws.s3.S3FileIO
+            - name: CATALOG_S3_ENDPOINT
+              value: http://{{ .Release.Name }}-minio:9000
+            - name: CATALOG_S3_ACCESS__KEY__ID
+              value: minioadmin
+            - name: CATALOG_S3_SECRET__ACCESS__KEY
+              value: minioadmin
+            - name: CATALOG_S3_PATH__STYLE__ACCESS
+              value: "true"
+            - name: AWS_REGION
+              value: us-east-1
           ports:
-            - containerPort: 19120
+            - containerPort: 8181
           readinessProbe:
-            httpGet:
-              path: /api/v2/config
-              port: 19120
+            tcpSocket:
+              port: 8181
             initialDelaySeconds: 10
             periodSeconds: 5
 ---
@@ -37,5 +46,5 @@ spec:
   selector:
     app: {{ .Release.Name }}-nessie
   ports:
-    - port: 19120
-      targetPort: 19120
+    - port: 8181
+      targetPort: 8181

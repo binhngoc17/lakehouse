@@ -18,7 +18,7 @@ spec:
             - name: MINIO_ENDPOINT
               value: http://{{ .Release.Name }}-minio:9000
             - name: NESSIE_URI
-              value: http://{{ .Release.Name }}-nessie:19120/iceberg
+              value: http://{{ .Release.Name }}-nessie:8181
             - name: NUM_CUSTOMERS
               value: {{ .Values.seed.numCustomers | quote }}
             - name: NUM_ACCOUNTS
