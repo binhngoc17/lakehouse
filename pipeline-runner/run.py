@@ -88,15 +88,23 @@ def run_trino_sql(sql: str) -> dict:
     r = requests.post(url, data=sql, headers=_trino_headers(), timeout=30)
     r.raise_for_status()
     result = r.json()
+    accumulated_data: list = []
 
     while "nextUri" in result:
+        if result.get("data"):
+            accumulated_data.extend(result["data"])
         time.sleep(0.3)
         r = requests.get(result["nextUri"], headers=_trino_headers(), timeout=30)
         r.raise_for_status()
         result = r.json()
 
+    if result.get("data"):
+        accumulated_data.extend(result["data"])
+
     if "error" in result:
         raise RuntimeError(f"Trino error: {result['error']['message']}")
+
+    result["data"] = accumulated_data
     return result
 
 

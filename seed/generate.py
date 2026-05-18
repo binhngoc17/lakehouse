@@ -167,7 +167,7 @@ def _transactions_to_arrow(rows: list[dict]) -> pa.Table:
 
 
 def _wait_for_nessie(uri: str, retries: int = 30, delay: int = 3) -> None:
-    health = uri.rstrip("/").replace("/iceberg", "") + "/api/v2/config"
+    health = uri.rstrip("/") + "/v1/config"
     for i in range(retries):
         try:
             urllib.request.urlopen(health, timeout=3)

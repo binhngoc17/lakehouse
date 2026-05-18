@@ -31,14 +31,22 @@ services:
       "
 
   nessie:
-    image: projectnessie/nessie:0.80.0
+    image: tabulario/iceberg-rest:latest
     environment:
-      QUARKUS_PROFILE: prod
-      NESSIE_VERSION_STORE_TYPE: IN_MEMORY
+      CATALOG_WAREHOUSE: s3://datalake/
+      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      CATALOG_S3_ENDPOINT: http://minio:9000
+      CATALOG_S3_ACCESS__KEY__ID: minioadmin
+      CATALOG_S3_SECRET__ACCESS__KEY: minioadmin
+      CATALOG_S3_PATH__STYLE__ACCESS: "true"
+      AWS_REGION: us-east-1
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
     ports:
-      - "19120:19120"
+      - "19120:8181"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:19120/api/v2/config"]
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/8181"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -68,7 +76,7 @@ services:
         condition: service_healthy
     environment:
       MINIO_ENDPOINT: http://minio:9000
-      NESSIE_URI: http://nessie:19120/iceberg
+      NESSIE_URI: http://nessie:8181
       NUM_CUSTOMERS: "1000"
       NUM_ACCOUNTS: "1500"
       NUM_TRANSACTIONS: "50000"
