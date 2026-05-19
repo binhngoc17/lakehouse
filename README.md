@@ -67,7 +67,7 @@ docker compose ps
 ### 3. Seed silver tables
 
 ```bash
-docker compose run --rm --profile tools seed
+docker compose --profile tools run --rm seed
 ```
 
 Generates and writes three Iceberg tables to MinIO via PyIceberg:
@@ -92,7 +92,7 @@ Seeding complete.
 ### 4. Run pipelines
 
 ```bash
-docker compose run --rm --profile tools pipeline-runner
+docker compose --profile tools run --rm pipeline-runner
 ```
 
 Reads all `pipelines/*.yaml` definitions, topologically sorts them, and materializes three gold tables via `CREATE OR REPLACE TABLE ... AS SELECT`:
@@ -199,7 +199,7 @@ cd pipeline-runner && pip install -r requirements.txt && pytest tests/ -v
 
 1. Create `pipelines/<name>.sql` with a SELECT statement
 2. Create `pipelines/<name>.yaml` with `name`, `target`, `depends_on`, `strategy`, `schedule`
-3. Re-run `docker compose run --rm --profile tools pipeline-runner`
+3. Re-run `docker compose --profile tools run --rm pipeline-runner`
 
 ## Kubernetes (Helm)
 

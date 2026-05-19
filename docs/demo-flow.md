@@ -66,7 +66,7 @@ docker compose ps      # wait until all services are "healthy"
 
 ```bash
 docker compose build seed
-docker compose run --rm --profile tools seed
+docker compose --profile tools run --rm seed
 ```
 
 Expected output:
@@ -179,7 +179,7 @@ automatically runs it last.
 
 ```bash
 docker compose build pipeline-runner
-docker compose run --rm --profile tools pipeline-runner
+docker compose --profile tools run --rm pipeline-runner
 ```
 
 Expected output:
@@ -298,7 +298,7 @@ owner: data-team
 3. Run the pipeline runner again:
 
 ```bash
-docker compose run --rm --profile tools pipeline-runner
+docker compose --profile tools run --rm pipeline-runner
 ```
 
 The new `gold.segment_summary` table appears. Query it in the UI:
