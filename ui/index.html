@@ -1399,6 +1399,17 @@ SELECT * FROM iceberg.gold.customer_profile LIMIT 10</textarea
       }
 
       // ── Trino REST client ──────────────────────────────────────────────────────────
+      // Trino returns absolute nextUri values (e.g. http://localhost/v1/...) which
+      // the browser cannot reach directly — rewrite them through the nginx proxy.
+      function rewriteUri(uri) {
+        try {
+          const u = new URL(uri);
+          return TRINO + u.pathname + u.search;
+        } catch {
+          return uri;
+        }
+      }
+
       async function trinoQuery(sql) {
         const r = await fetch(`${TRINO}/v1/statement`, {
           method: "POST",
@@ -1408,7 +1419,7 @@ SELECT * FROM iceberg.gold.customer_profile LIMIT 10</textarea
         let result = await r.json();
         while (result.nextUri) {
           await new Promise((res) => setTimeout(res, 300));
-          const nr = await fetch(result.nextUri, {
+          const nr = await fetch(rewriteUri(result.nextUri), {
             headers: { "X-Trino-User": "admin" },
           });
           result = await nr.json();
