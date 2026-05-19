@@ -1417,15 +1417,22 @@ SELECT * FROM iceberg.gold.customer_profile LIMIT 10</textarea
           body: sql,
         });
         let result = await r.json();
+        let columns = result.columns || null;
+        let data = [];
         while (result.nextUri) {
+          if (result.columns && !columns) columns = result.columns;
+          if (result.data) data = data.concat(result.data);
           await new Promise((res) => setTimeout(res, 300));
           const nr = await fetch(rewriteUri(result.nextUri), {
             headers: { "X-Trino-User": "admin" },
           });
           result = await nr.json();
         }
+        // collect from the final page too
+        if (result.columns && !columns) columns = result.columns;
+        if (result.data) data = data.concat(result.data);
         if (result.error) throw new Error(result.error.message);
-        return result;
+        return { ...result, columns, data };
       }
 
       async function trinoScalar(sql) {
