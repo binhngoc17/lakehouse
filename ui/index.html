@@ -1411,28 +1411,28 @@ SELECT * FROM iceberg.gold.customer_profile LIMIT 10</textarea
       }
 
       async function trinoQuery(sql) {
-        const r = await fetch(`${TRINO}/v1/statement`, {
+        const post = await fetch(`${TRINO}/v1/statement`, {
           method: "POST",
           headers: { "Content-Type": "text/plain", "X-Trino-User": "admin" },
           body: sql,
         });
-        let result = await r.json();
-        let columns = result.columns || null;
+        if (!post.ok) throw new Error(`Trino HTTP ${post.status}`);
+        let page = await post.json();
+        let columns = null;
         let data = [];
-        while (result.nextUri) {
-          if (result.columns && !columns) columns = result.columns;
-          if (result.data) data = data.concat(result.data);
-          await new Promise((res) => setTimeout(res, 300));
-          const nr = await fetch(rewriteUri(result.nextUri), {
+        while (true) {
+          if (page.error) throw new Error(page.error.message);
+          if (page.columns) columns = page.columns;
+          if (page.data) data = data.concat(page.data);
+          if (!page.nextUri) break;
+          await new Promise((r) => setTimeout(r, 300));
+          const poll = await fetch(rewriteUri(page.nextUri), {
             headers: { "X-Trino-User": "admin" },
           });
-          result = await nr.json();
+          if (!poll.ok) throw new Error(`Trino poll HTTP ${poll.status}`);
+          page = await poll.json();
         }
-        // collect from the final page too
-        if (result.columns && !columns) columns = result.columns;
-        if (result.data) data = data.concat(result.data);
-        if (result.error) throw new Error(result.error.message);
-        return { ...result, columns, data };
+        return { ...page, columns, data };
       }
 
       async function trinoScalar(sql) {
